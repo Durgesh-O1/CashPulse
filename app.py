@@ -1,3 +1,4 @@
+import os
 from flask import Flask, jsonify, render_template, request
 import pandas as pd
 
@@ -13,7 +14,11 @@ def get_data():
     income_rate = float(request.args.get('income_rate', 5)) / 100
     expense_rate = float(request.args.get('expense_rate', 2)) / 100
 
-    df = pd.read_csv('ledger.csv')
+    # PATH FIX: Ensures the CSV is found relative to this script's location
+    base_path = os.path.dirname(__file__)
+    file_path = os.path.join(base_path, 'ledger.csv')
+    
+    df = pd.read_csv(file_path)
     df['Net_Cash'] = df['Income'] - df['Expenses']
     
     labels = df['Month'].tolist()
@@ -39,6 +44,3 @@ def get_data():
         'historical': historical_net,
         'predicted': padded_future
     })
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
