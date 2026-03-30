@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CashPulse - SME Predictor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #f4f5f7;
+            --container-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #e2e8f0;
+            --header-bg: #ffffff;
+            --table-header-bg: #f8f9fa;
+            --table-row-hover: #f1f5f9;
+            --btn-bg: #2962ff; 
+            --btn-text: #ffffff;
+            --input-border: #cbd5e1;
+            --link-color: #2962ff;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #0f172a;
+            --container-bg: #1e293b;
+            --text-color: #f8fafc;
+            --border-color: #334155;
+            --header-bg: #1e293b;
+            --table-header-bg: #0f172a;
+            --table-row-hover: #334155;
+            --btn-bg: #60a5fa;
+            --btn-text: #0f172a;
+            --input-border: #475569;
+            --link-color: #60a5fa;
+        }
+
+        body { 
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-color); 
+            margin: 0; 
+            padding: 0;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .navbar {
+            background-color: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar h2 { margin: 0; font-size: 1.2rem; color: var(--link-color); }
+        
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .container { 
+            max-width: 1100px; 
+            margin: 2rem auto; 
+            background: var(--container-bg); 
+            padding: 2rem; 
+            border: 1px solid var(--border-color);
+            border-radius: 8px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+        }
+
+        .controls-card {
+            background: var(--table-header-bg);
+            border: 1px solid var(--border-color);
+            padding: 15px 20px;
+            border-radius: 6px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .controls-card label { font-size: 0.9rem; font-weight: 600; }
+        
+        input[type="number"] { 
+            width: 70px; 
+            padding: 6px; 
+            border: 1px solid var(--input-border); 
+            border-radius: 4px; 
+            background: var(--container-bg);
+            color: var(--text-color);
+        }
+
+        /* Standard Button */
+        button.primary-btn { 
+            padding: 8px 16px; 
+            background-color: var(--btn-bg); 
+            color: var(--btn-text); 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            font-size: 0.9rem;
+        }
+        button.primary-btn:hover { opacity: 0.9; }
+
+        /* New Export Button Styling */
+        button.export-btn {
+            padding: 8px 16px; 
+            background-color: transparent; 
+            color: var(--text-color); 
+            border: 1px solid var(--border-color); 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            font-size: 0.9rem;
+            margin-left: auto; /* Pushes it to the far right */
+        }
+        button.export-btn:hover { background-color: var(--table-row-hover); }
+
+        .chart-container { margin-bottom: 3rem; }
+
+        .section-title {
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-bottom: 2px solid var(--link-color);
+            padding-bottom: 5px;
+            display: inline-block;
+        }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { padding: 12px 10px; text-align: right; border-bottom: 1px solid var(--border-color); }
+        th { background-color: var(--table-header-bg); font-weight: 600; color: var(--text-color); }
+        th:first-child, td:first-child { text-align: left; }
+        tr:hover { background-color: var(--table-row-hover); }
+
+        .historical-tag { background: #e3f2fd; color: #1565c0; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+        .predicted-tag { background: #e8f5e9; color: #2e7d32; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+        
+        [data-theme="dark"] .historical-tag { background: rgba(96, 165, 250, 0.2); color: #93c5fd; }
+        [data-theme="dark"] .predicted-tag { background: rgba(74, 222, 128, 0.2); color: #86efac; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>CashPulse</h2>
+    <button class="theme-toggle" onclick="toggleTheme()">🌓 Toggle Theme</button>
+</div>
+
+<div class="container">
+    <div class="controls-card">
+        <label>Expected Income Growth (%): 
+            <input type="number" id="incomeRate" value="5">
+        </label>
+        <label>Expected Expense Growth (%): 
+            <input type="number" id="expenseRate" value="2">
+        </label>
+        <button class="primary-btn" onclick="updateDashboard()">Run Query</button>
+        
+        <button class="export-btn" onclick="exportTableToCSV('CashFlow_Projection.csv')">📥 Export to Excel</button>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="cashFlowChart"></canvas>
+    </div>
+
+    <div class="table-container">
+        <div class="section-title">Raw Cash Flow Data</div>
+        <table id="cashFlowTable">
+            <thead>
+                <tr>
+                    <th>Reporting Month</th>
+                    <th>Data Source</th>
+                    <th>Net Cash Flow ($)</th>
+                </tr>
+            </thead>
+            <tbody id="dataTableBody">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let myChart = null;
+
+    function toggleTheme() {
+        const html = document.documentElement;
+        const currentTheme = html.getAttribute('data-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        html.setAttribute('data-theme', newTheme);
+        if(myChart) { updateDashboard(); }
+    }
+
+    async function updateDashboard() {
+        const incRate = document.getElementById('incomeRate').value;
+        const expRate = document.getElementById('expenseRate').value;
+        
+        const response = await fetch(`/api/data?income_rate=${incRate}&expense_rate=${expRate}`);
+        const data = await response.json();
+
+        renderChart(data);
+        renderTable(data);
+    }
+
+    function renderChart(data) {
+        const ctx = document.getElementById('cashFlowChart').getContext('2d');
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        
+        const gridColor = isDark ? '#334155' : '#e2e8f0';
+        const textColor = isDark ? '#f8fafc' : '#333333';
+
+        if (myChart != null) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: [
+                    {
+                        label: 'Historical ($)',
+                        data: data.historical,
+                        borderColor: isDark ? '#60a5fa' : '#2962ff',
+                        backgroundColor: isDark ? 'rgba(96, 165, 250, 0.1)' : 'rgba(41, 98, 255, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true
+                    },
+                    {
+                        label: 'Predicted ($)',
+                        data: data.predicted,
+                        borderColor: isDark ? '#4ade80' : '#16a34a',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.1,
+                        spanGaps: true
+                    }
+                ]
+            },
+            options: { 
+                responsive: true, 
+                plugins: { legend: { labels: { color: textColor } } },
+                scales: { 
+                    x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                    y: { beginAtZero: false, ticks: { color: textColor }, grid: { color: gridColor } } 
+                } 
+            }
+        });
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('dataTableBody');
+        tbody.innerHTML = ''; 
+
+        data.labels.forEach((label, index) => {
+            let value, type;
+            
+            if (index < data.historical.length) {
+                value = data.historical[index];
+                type = 'Historical';
+            } else {
+                value = data.predicted[index];
+                type = 'Predicted';
+            }
+
+            const row = `<tr>
+                <td>${label}</td>
+                <td><span class="${type.toLowerCase()}-tag">${type}</span></td>
+                <td><strong>$${value.toLocaleString()}</strong></td>
+            </tr>`;
+            tbody.insertAdjacentHTML('beforeend', row);
+        });
+    }
+
+    // --- NEW EXPORT FUNCTIONALITY ---
+    function exportTableToCSV(filename) {
+        let csv = [];
+        // Target our specific table
+        let rows = document.querySelectorAll("#cashFlowTable tr");
+        
+        for (let i = 0; i < rows.length; i++) {
+            let row = [], cols = rows[i].querySelectorAll("td, th");
+            
+            for (let j = 0; j < cols.length; j++) {
+                // Get the text inside the cell
+                let data = cols[j].innerText;
+                
+                // Clean the data: Remove the $ and commas so Excel treats it as a pure number
+                data = data.replace(/\$|,/g, ''); 
+                
+                // Wrap in quotes to prevent CSV parsing errors
+                row.push('"' + data + '"');
+            }
+            csv.push(row.join(","));        
+        }
+
+        // Create the CSV file and trigger the download
+        downloadCSV(csv.join("\n"), filename);
+    }
+
+    function downloadCSV(csv, filename) {
+        let csvFile;
+        let downloadLink;
+
+        // Create a Blob with the CSV data
+        csvFile = new Blob([csv], {type: "text/csv"});
+
+        // Create an invisible link, attach the Blob, and click it programmatically
+        downloadLink = document.createElement("a");
+        downloadLink.download = filename;
+        downloadLink.href = window.URL.createObjectURL(csvFile);
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    }
+
+    // Initialize
+    updateDashboard();
+</script>
+
+</body>
+</html>
